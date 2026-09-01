@@ -74,4 +74,4 @@ El repositorio no contiene credenciales, bases reales, hidrantes estimados, orig
 
 ## Publicación
 
-Este repositorio local no tiene remoto ni licencia asignada. La publicación como software abierto requiere una decisión expresa de licencia, titularidad, marca y canal privado para reportes de seguridad.
+El código fuente es público, pero todavía no tiene una licencia de software asignada. Una distribución formal como software abierto requiere definir licencia, titularidad, uso de marca y un canal privado para reportes de seguridad.
