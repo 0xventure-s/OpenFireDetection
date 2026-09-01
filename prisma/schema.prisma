@@ -1,0 +1,384 @@
+// Prisma schema for OpenFireDetection
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+model User {
+  id                 String       @id
+  name               String
+  email              String       @unique
+  emailVerified      Boolean      @default(false) @map("email_verified")
+  image              String?
+  status             String       @default("active")
+  mustChangePassword Boolean      @default(false) @map("must_change_password")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  sessions    Session[]
+  accounts    Account[]
+  memberships Member[]
+
+  @@map("auth_users")
+}
+
+model Session {
+  id                   String   @id
+  expiresAt            DateTime @map("expires_at")
+  token                String   @unique
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  ipAddress             String?  @map("ip_address")
+  userAgent             String?  @map("user_agent")
+  userId                String   @map("user_id")
+  activeOrganizationId String?  @map("active_organization_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([activeOrganizationId])
+  @@map("auth_sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@unique([providerId, accountId])
+  @@map("auth_accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("auth_verifications")
+}
+
+model Organization {
+  id        String   @id
+  name      String
+  slug      String   @unique
+  logo      String?
+  metadata  String?
+  status    String   @default("active")
+  edition   String   @default("community")
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members           Member[]
+  fires             Incident[]
+  fireAudits        FireAudit[]
+  stations          FireStation[]
+  units             OperationalUnit[]
+  maintenance       MaintenanceRecord[]
+  operationalAudits OperationalAudit[]
+  scanRuns          ScanRun[]
+  assets            OperationalAsset[]
+  assignments       IncidentAssignment[]
+
+  @@map("organizations")
+}
+
+model Member {
+  id             String   @id
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  role           String   @default("operator")
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model Incident {
+  organizationId  String    @map("organization_id")
+  id              String    @id @default(uuid())
+  lat             Float
+  lon             Float
+  geom            String    // PostGIS geometry as text (POINT)
+  detectedAt      DateTime  @map("detected_at")
+  confirmed       Boolean   @default(false)
+  confirmedBy     String?   @map("confirmed_by")
+  confirmedAt     DateTime? @map("confirmed_at")
+  status          String    @default("unconfirmed") // unconfirmed | probable | confirmed | false_positive | extinguished
+  lifecycleStatus String    @default("active") @map("lifecycle_status") // active | closed | archived | test
+  extinguishedBy  String?   @map("extinguished_by")
+  extinguishedAt  DateTime? @map("extinguished_at")
+  reviewedAt      DateTime? @map("reviewed_at")
+  reviewedBy      String?   @map("reviewed_by")
+  dispatchedAt    DateTime? @map("dispatched_at")
+  dispatchedBy    String?   @map("dispatched_by")
+  closedAt        DateTime? @map("closed_at")
+  dataFreshness   Json      @default("{}") @map("data_freshness")
+  weatherSnapshot Json?     @map("weather_snapshot")
+  terrainSnapshot Json?     @map("terrain_snapshot")
+  projectionSnapshot Json?  @map("projection_snapshot")
+  sources         Json      @default("[]") // Array of sources [{source, prob, ts}]
+  payload         Json      @default("{}") // Raw payload data
+  manual          Boolean   @default(false)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  audits       FireAudit[]
+  assignments IncidentAssignment[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status, detectedAt])
+  @@index([organizationId, lifecycleStatus, detectedAt])
+  @@index([status, detectedAt])
+  @@index([lifecycleStatus, detectedAt])
+  @@index([detectedAt])
+  @@index([confirmed])
+  @@map("incidents")
+}
+
+model FireAudit {
+  organizationId String   @map("organization_id")
+  id             String   @id @default(uuid())
+  fireId         String   @map("fire_id")
+  action         String   // created | updated | confirmed | rejected | manual_add
+  actor          String   // authenticated user ID or trusted system identity
+  reason         String?
+  payload        Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  fire         Incident  @relation(fields: [organizationId, fireId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([fireId])
+  @@index([createdAt])
+  @@map("fire_audit")
+}
+
+model FireStation {
+  organizationId String   @map("organization_id")
+  id             String   @id @default(uuid())
+  code           String?
+  name      String
+  locality  String?
+  address   String?
+  contact   String?
+  lat       Float?
+  lon       Float?
+  notes     String?
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  units        OperationalUnit[]
+  audits       OperationalAudit[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@index([organizationId, name])
+  @@index([name])
+  @@index([locality])
+  @@map("fire_stations")
+}
+
+model OperationalUnit {
+  organizationId String   @map("organization_id")
+  id             String   @id @default(uuid())
+  code           String
+  name           String
+  type           String   @default("engine") // engine | tanker | brush_truck | pickup | machinery | support | brigade | other
+  stationId      String?  @map("station_id")
+  baseName       String?  @map("base_name")
+  status         String   @default("available") // available | assigned | unavailable | maintenance
+  contact        String?
+  licensePlate   String?  @map("license_plate")
+  capacityLiters Int?     @map("capacity_liters")
+  crewCapacity   Int?     @map("crew_capacity")
+  lat            Float?
+  lon            Float?
+  notes          String?
+  payload        Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  station            FireStation?        @relation(fields: [organizationId, stationId], references: [organizationId, id], onDelete: Restrict)
+  assignments        IncidentAssignment[]
+  maintenanceRecords MaintenanceRecord[]
+  audits             OperationalAudit[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+  @@index([status])
+  @@index([type, status])
+  @@index([stationId])
+  @@map("operational_units")
+}
+
+model MaintenanceRecord {
+  organizationId String    @map("organization_id")
+  id          String    @id @default(uuid())
+  unitId      String    @map("unit_id")
+  title       String
+  status      String    @default("scheduled") // scheduled | in_progress | completed | cancelled
+  dueAt       DateTime? @map("due_at")
+  scheduledAt DateTime? @map("scheduled_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  odometerKm  Int?      @map("odometer_km")
+  performedBy String?   @map("performed_by")
+  notes       String?
+  payload     Json      @default("{}")
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  unit         OperationalUnit    @relation(fields: [organizationId, unitId], references: [organizationId, id], onDelete: Cascade)
+  audits OperationalAudit[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status])
+  @@index([unitId, status])
+  @@index([status])
+  @@index([dueAt])
+  @@map("maintenance_records")
+}
+
+model OperationalAudit {
+  organizationId String   @map("organization_id")
+  id            String   @id @default(uuid())
+  stationId     String?  @map("station_id")
+  unitId        String?  @map("unit_id")
+  assetId       String?  @map("asset_id")
+  maintenanceId String?  @map("maintenance_id")
+  action        String
+  actor         String
+  reason        String?
+  payload       Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  station     FireStation?       @relation(fields: [organizationId, stationId], references: [organizationId, id], onDelete: Restrict)
+  unit        OperationalUnit?   @relation(fields: [organizationId, unitId], references: [organizationId, id], onDelete: Restrict)
+  asset       OperationalAsset?  @relation(fields: [organizationId, assetId], references: [organizationId, id], onDelete: Restrict)
+  maintenance MaintenanceRecord? @relation(fields: [organizationId, maintenanceId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt])
+  @@index([stationId])
+  @@index([unitId])
+  @@index([assetId])
+  @@index([maintenanceId])
+  @@index([createdAt])
+  @@map("operational_audit")
+}
+
+model ScanRun {
+  organizationId String    @map("organization_id")
+  id             String    @id @default(uuid())
+  triggerType    String    @map("trigger_type") // manual | polling
+  triggeredBy    String?   @map("triggered_by")
+  status         String    @default("running") // running | success | failed
+  startedAt      DateTime  @default(now()) @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
+  durationMs     Int?      @map("duration_ms")
+  newCount       Int       @default(0) @map("new_count")
+  updatedCount   Int       @default(0) @map("updated_count")
+  confirmedCount Int       @default(0) @map("confirmed_count")
+  closedCount    Int       @default(0) @map("closed_count")
+  summary        String?
+  error          String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, startedAt])
+  @@index([startedAt])
+  @@index([status, startedAt])
+  @@map("scan_runs")
+}
+
+model OperationalAsset {
+  organizationId String   @map("organization_id")
+  id        String   @id @default(uuid())
+  name      String
+  type      String // water_source | helipad | station | staging | access_point | other
+  status    String   @default("unknown") // available | unavailable | unknown
+  lat       Float?
+  lon       Float?
+  notes     String?
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  assignments  IncidentAssignment[]
+  audits       OperationalAudit[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, type])
+  @@index([type])
+  @@index([status])
+  @@map("operational_assets")
+}
+
+model IncidentAssignment {
+  organizationId String    @map("organization_id")
+  id         String    @id @default(uuid())
+  fireId     String    @map("fire_id")
+  unitId     String?   @map("unit_id")
+  assetId    String?   @map("asset_id")
+  unitName   String?   @map("unit_name")
+  role       String    @default("primary")
+  status     String    @default("assigned") // assigned | en_route | on_scene | released
+  assignedAt DateTime  @default(now()) @map("assigned_at")
+  assignedBy String    @map("assigned_by")
+  releasedAt DateTime? @map("released_at")
+  notes      String?
+  payload    Json      @default("{}")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  fire         Incident     @relation(fields: [organizationId, fireId], references: [organizationId, id], onDelete: Cascade)
+  unit         OperationalUnit?   @relation(fields: [organizationId, unitId], references: [organizationId, id], onDelete: Restrict)
+  asset        OperationalAsset?  @relation(fields: [organizationId, assetId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, fireId, status])
+  @@index([fireId, status])
+  @@index([unitId, status])
+  @@index([assetId])
+  @@index([assignedAt])
+  @@map("incident_assignments")
+}
