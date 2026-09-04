@@ -5,6 +5,11 @@
 <h1 align="center">OpenFireDetection</h1>
 
 <p align="center">
+  <em>“Open source, open heart, open mind.”</em><br />
+  <sub>— <a href="https://ossacc.com/">Peer Richelsen</a></sub>
+</p>
+
+<p align="center">
   <strong>Detección temprana, verificación humana y coordinación operativa en un solo mapa.</strong>
 </p>
 
@@ -14,6 +19,9 @@
 
 <p align="center">
   <a href="https://github.com/0xventure-s/OpenFireDetection/actions/workflows/ci.yml"><img src="https://github.com/0xventure-s/OpenFireDetection/actions/workflows/ci.yml/badge.svg" alt="Estado de integración continua" /></a>
+  <a href="https://github.com/0xventure-s/OpenFireDetection/stargazers"><img src="https://img.shields.io/github/stars/0xventure-s/OpenFireDetection?style=flat&logo=github&label=estrellas&color=f97316" alt="Estrellas de OpenFireDetection en GitHub" /></a>
+  <a href="https://github.com/0xventure-s/OpenFireDetection/forks"><img src="https://img.shields.io/github/forks/0xventure-s/OpenFireDetection?style=flat&logo=github&label=forks&color=334155" alt="Forks de OpenFireDetection en GitHub" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licencia-PolyForm%20Noncommercial%201.0.0-7c3aed" alt="Licencia PolyForm Noncommercial 1.0.0" /></a>
   <img src="https://img.shields.io/badge/Node.js-20.9%2B-339933?logo=nodedotjs&logoColor=white" alt="Node.js 20.9 o superior" />
   <img src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white" alt="Next.js 16" />
   <img src="https://img.shields.io/badge/PostgreSQL-15%2B-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 15 o superior" />
@@ -24,13 +32,15 @@
   <a href="#capacidades">Capacidades</a> ·
   <a href="#cómo-funciona">Cómo funciona</a> ·
   <a href="#puesta-en-marcha">Puesta en marcha</a> ·
+  <a href="#credenciales-y-api">Credenciales y API</a> ·
   <a href="docs/configuracion.md">Configuración</a> ·
-  <a href="SECURITY.md">Seguridad</a>
+  <a href="SECURITY.md">Seguridad</a> ·
+  <a href="#licencia">Licencia</a>
 </p>
 
 ![Visual conceptual de monitoreo satelital y detección de incendios](docs/assets/openfire-hero.jpg)
 
-OpenFireDetection reúne señales satelitales, reportes manuales y contexto ambiental en un entorno operativo común. Los equipos pueden detectar, revisar, priorizar y documentar incidentes, coordinar recursos y conservar un historial auditable sin depender de un servicio multitenant.
+OpenFireDetection reúne señales satelitales, reportes manuales y contexto ambiental en un entorno operativo común. Los equipos pueden detectar, revisar, priorizar y documentar incidentes, coordinar recursos y conservar un historial auditable en infraestructura propia.
 
 > [!IMPORTANT]
 > Las señales satelitales y ambientales son indicios. La confirmación operativa requiere revisión humana y contraste con fuentes oficiales locales.
@@ -47,17 +57,15 @@ OpenFireDetection reúne señales satelitales, reportes manuales y contexto ambi
 | **Acceso y trazabilidad** | Sesiones con correo y contraseña, roles por capacidad y auditoría de acciones. |
 | **Jurisdicción propia** | Nombre, zona horaria, límites, centro y zoom definidos por variables de entorno. |
 
-### Community Edition
+### Alcance de Community Edition
 
-| Incluye | No incluye |
-| --- | --- |
-| Una organización por instalación | Selector de organizaciones |
-| Autenticación y roles operativos | Superadministración de plataforma |
-| Datos aislados por `organizationId` | Facturación y planes |
-| Configuración geográfica propia | Control plane multitenant |
-| Despliegue en infraestructura propia | SLA o monitoreo administrado |
+- Una organización por instalación.
+- Autenticación y roles operativos.
+- Datos aislados por `organizationId`.
+- Jurisdicción, zona horaria y mapa configurables.
+- Despliegue y operación en infraestructura propia.
 
-El identificador interno de organización se conserva incluso en Community Edition como límite de seguridad y consistencia de datos.
+El identificador interno de organización protege la separación y consistencia de los datos.
 
 ## Cómo funciona
 
@@ -101,10 +109,35 @@ flowchart LR
 
 - Node.js 20.9 o superior.
 - PostgreSQL 15 o superior con PostGIS.
-- Una clave de NASA FIRMS para habilitar esa fuente.
-- Credenciales de Google Earth Engine si se habilita GOES-19 directo.
+- Una clave gratuita de NASA FIRMS.
+- Credenciales de Google Earth Engine solo si se habilita el acceso directo a esa fuente.
 
-### 2. Descargar e instalar
+### 2. Credenciales y API
+
+No hace falta buscar cada alta por separado. Estos son los accesos oficiales y la variable que recibe cada dato:
+
+| Necesidad | Variable | Dónde se obtiene |
+| --- | --- | --- |
+| Base PostgreSQL + PostGIS | `DATABASE_URL` | Servidor propio o un proveedor compatible. En [Neon](https://neon.com/docs/connect/connect-from-any-app), crea un proyecto y copia la cadena desde **Connect**. |
+| Secreto de sesiones | `BETTER_AUTH_SECRET` | Se genera localmente con el comando incluido debajo. No se solicita a un proveedor. |
+| Detecciones NASA FIRMS | `FIRMS_MAP_KEY` | [Solicitud oficial de MAP_KEY de NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/api/map_key/). Es gratuita y llega por correo. |
+| GOES-19 por Earth Engine | `EARTH_ENGINE_PROJECT_ID` y `EARTH_ENGINE_SERVICE_ACCOUNT_JSON_BASE64` | [Alta del proyecto en Earth Engine](https://developers.google.com/earth-engine/cloud/earthengine_cloud_project_setup) y [cuenta de servicio con clave JSON](https://developers.google.com/earth-engine/guides/service_account). |
+| Productos Sentinel-3 | `EUMETSAT_CONSUMER_KEY` y `EUMETSAT_CONSUMER_SECRET` | [EUMETSAT Data Store](https://data.eumetsat.int/), desde las credenciales API del perfil. |
+
+Genera `BETTER_AUTH_SECRET` en cualquier sistema con Node.js:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+GOES-19 también usa el respaldo público de NOAA Open Data, habilitado con `GOES_NOAA_S3_FALLBACK="true"` y sin API key. Open-Meteo, USGS, NASA GIBS y el catálogo NASA CMR/HLS tampoco requieren claves.
+
+> [!NOTE]
+> Las credenciales de EUMETSAT habilitan el descubrimiento de productos. Para obtener puntos de calor Sentinel-3, configura además `SENTINEL3_FRP_GEOJSON_URL` con un feed GeoJSON procesado por tu propia canalización.
+
+La guía [docs/configuracion.md](docs/configuracion.md) incluye todas las variables, los pasos para convertir la clave JSON de Earth Engine a Base64 y las fuentes que funcionan sin credenciales.
+
+### 3. Descargar e instalar
 
 ```bash
 git clone https://github.com/0xventure-s/OpenFireDetection.git
@@ -112,7 +145,7 @@ cd OpenFireDetection
 npm ci
 ```
 
-### 3. Crear la configuración local
+### 4. Crear la configuración local
 
 Linux y macOS:
 
@@ -151,9 +184,12 @@ NEXT_PUBLIC_MAP_CENTER_LON="-65"
 NEXT_PUBLIC_MAP_ZOOM="7"
 ```
 
+> [!IMPORTANT]
+> Conserva exactamente `APP_EDITION="community"`.
+
 Los límites incluidos en `.env.example` son únicamente demostrativos. Deben reemplazarse y validarse antes de cualquier uso operativo.
 
-### 4. Preparar la base y el acceso inicial
+### 5. Preparar la base y el acceso inicial
 
 ```bash
 npm run prisma:generate
@@ -163,15 +199,13 @@ node --env-file=.env --import tsx scripts/bootstrap-community-auth.ts
 
 La contraseña inicial no se imprime. La cuenta creada deberá cambiarla en el primer ingreso.
 
-### 5. Iniciar la aplicación
+### 6. Iniciar la aplicación
 
 ```bash
 npm run dev
 ```
 
 Abre `http://localhost:3000` e ingresa con la cuenta configurada.
-
-La referencia completa de variables, fuentes y activación está en [docs/configuracion.md](docs/configuracion.md).
 
 ## Despliegue
 
@@ -227,10 +261,16 @@ docs/         Configuración y documentación complementaria
 
 Los reportes sensibles no deben publicarse en issues. Consulta [SECURITY.md](SECURITY.md) antes de compartir credenciales, ubicaciones o datos operativos.
 
-## Estado de la licencia
+## Licencia
 
-> [!WARNING]
-> El código es público, pero todavía no tiene una licencia de software asignada. Hasta que se publique una licencia, no se otorgan permisos de uso, modificación ni redistribución. La licencia, la titularidad, el uso de marca y el canal privado de seguridad deben resolverse antes de una distribución formal como software open source.
+OpenFireDetection se publica bajo la [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+- Se permite usar, estudiar, modificar y redistribuir el software únicamente con fines no comerciales y conservando la licencia y los avisos requeridos.
+- No se permite venderlo, cobrar por su acceso, incorporarlo a un servicio comercial ni usarlo con una finalidad comercial sin autorización previa y escrita del titular.
+- Organizaciones de seguridad pública, salud, protección ambiental, educación, investigación pública, gobierno y entidades benéficas pueden utilizarlo según los términos específicos de la licencia.
+- El software se entrega sin garantías. La validación operativa, la seguridad, los respaldos y el cumplimiento normativo son responsabilidad de cada instalación.
+
+Esta es una licencia de código fuente disponible con restricción no comercial; no es una licencia Open Source aprobada por la OSI.
 
 ---
 

@@ -62,10 +62,7 @@ export async function requireOperator(
     throw new OperatorAuthError('Cambiá la contraseña inicial para continuar.', 403);
   }
 
-  const activeOrganizationId = session.session.activeOrganizationId;
-  if (activeOrganizationId !== COMMUNITY_ORGANIZATION_ID) {
-    throw new OperatorAuthError('La sesión no tiene una organización activa.', 403);
-  }
+  const activeOrganizationId = COMMUNITY_ORGANIZATION_ID;
 
   const membership = await prisma.member.findFirst({
     where: {

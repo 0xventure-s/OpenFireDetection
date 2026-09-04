@@ -14,6 +14,7 @@ export const auth = betterAuth({
   ...(baseURL ? { baseURL } : {}),
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
+    transaction: true,
   }),
   emailAndPassword: {
     enabled: true,
@@ -42,13 +43,6 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 12,
     updateAge: 60 * 60,
     freshAge: 60 * 15,
-    additionalFields: {
-      activeOrganizationId: {
-        type: 'string',
-        required: false,
-        input: false,
-      },
-    },
   },
   databaseHooks: {
     session: {
@@ -67,10 +61,7 @@ export const auth = betterAuth({
           if (!membership) return false;
 
           return {
-            data: {
-              ...session,
-              activeOrganizationId: membership.organizationId,
-            },
+            data: session,
           };
         },
       },
@@ -94,9 +85,6 @@ export const auth = betterAuth({
   },
   advanced: {
     useSecureCookies: process.env.NODE_ENV === 'production',
-    database: {
-      transaction: true,
-    },
   },
 });
 

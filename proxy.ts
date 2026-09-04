@@ -18,7 +18,8 @@ export async function proxy(request: NextRequest) {
 
   if (!session) return NextResponse.next();
 
-  const mustChangePassword = Boolean(session.user.mustChangePassword);
+  const sessionUser = session.user as typeof session.user & { mustChangePassword?: boolean };
+  const mustChangePassword = Boolean(sessionUser.mustChangePassword);
   if (mustChangePassword && pathname !== '/cambiar-clave') {
     return NextResponse.redirect(new URL('/cambiar-clave', request.url));
   }

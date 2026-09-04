@@ -8,8 +8,9 @@ describe('jurisdiction weather forecast', () => {
   });
 
   it('turns jurisdiction rain and thunderstorm conditions into operational alerts', async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      void input;
+      return new Response(
         JSON.stringify([
           {
             hourly: {
@@ -24,8 +25,8 @@ describe('jurisdiction weather forecast', () => {
             },
           },
         ])
-      )
-    );
+      );
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await fetchJurisdictionForecast();

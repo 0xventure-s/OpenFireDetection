@@ -8,8 +8,9 @@ describe('jurisdiction earthquake feed', () => {
   });
 
   it('keeps only events inside the configured jurisdiction', async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response(
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      void input;
+      return new Response(
         JSON.stringify({
           features: [
             {
@@ -24,8 +25,8 @@ describe('jurisdiction earthquake feed', () => {
             },
           ],
         })
-      )
-    );
+      );
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await fetchJurisdictionEarthquakes(new Date('2026-08-19T12:00:00.000Z'));

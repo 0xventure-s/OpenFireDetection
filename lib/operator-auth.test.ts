@@ -18,7 +18,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { OperatorAuthError, requireOperator } from '@/lib/operator-auth';
+import { requireOperator } from '@/lib/operator-auth';
 
 describe('operator authentication', () => {
   beforeEach(() => {
@@ -46,7 +46,7 @@ describe('operator authentication', () => {
       headers: { 'x-operator-id': 'brigada-1' },
     });
 
-    await expect(requireOperator(request)).rejects.toMatchObject<Partial<OperatorAuthError>>({
+    await expect(requireOperator(request)).rejects.toMatchObject({
       status: 401,
       message: 'Iniciá sesión para continuar.',
     });
@@ -74,7 +74,7 @@ describe('operator authentication', () => {
 
     await expect(
       requireOperator(new NextRequest('http://localhost/api/fire/scan'), 'scan.trigger')
-    ).rejects.toMatchObject<Partial<OperatorAuthError>>({ status: 403 });
+    ).rejects.toMatchObject({ status: 403 });
   });
 
   it('requires changing the initial password before operational access', async () => {
@@ -88,6 +88,6 @@ describe('operator authentication', () => {
 
     await expect(
       requireOperator(new NextRequest('http://localhost/api/fire/scan'))
-    ).rejects.toMatchObject<Partial<OperatorAuthError>>({ status: 403 });
+    ).rejects.toMatchObject({ status: 403 });
   });
 });
